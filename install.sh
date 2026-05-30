@@ -10,7 +10,10 @@ SHPATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 : ${THEMES_DIR:=/usr/share/sddm/themes}
 
 install_dependencies () {
-    if command -v pacman &>/dev/null; then
+    if command -v apt &>/dev/null; then
+        echo -e "${grey}Installing dependencies with 'apt'...${reset}"
+        sudo apt install sddm qt6-svg-dev qt6-virtualkeyboard-dev qt6-multimedia-dev
+    elif command -v pacman &>/dev/null; then
         echo -e "${grey}Installing dependencies with 'pacman'...${reset}"
         sudo pacman -S --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg
     elif command -v xbps-install &>/dev/null; then

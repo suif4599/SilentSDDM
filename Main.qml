@@ -40,9 +40,9 @@ Item {
             }
             PropertyChanges {
                 target: backgroundEffect
-                blurMax: Config.lockScreenBlur
-                brightness: Config.lockScreenBrightness
-                saturation: Config.lockScreenSaturation
+                blurMax: 0
+                brightness: 0
+                saturation: 0
             }
         },
         State {
@@ -95,117 +95,22 @@ Item {
         width: geometry.width
         height: geometry.height
 
-        // AnimatedImage { // `.gif`s are seg faulting with multi monitors... QT/SDDM issue?
+        // Simple background - only default.jpg
         Image {
-            // Background
             id: backgroundImage
-            property string tsource: root.state === "lockState" ? Config.lockScreenBackground : Config.loginScreenBackground
-
-            property bool isVideo: {
-                if (!tsource || tsource.toString().length === 0)
-                    return false;
-                var parts = tsource.toString().split(".");
-                if (parts.length === 0)
-                    return false;
-                var ext = parts[parts.length - 1];
-                return ["avi", "mp4", "mov", "mkv", "m4v", "webm"].indexOf(ext) !== -1;
-            }
-            property bool displayColor: root.state === "lockState" && Config.lockScreenUseBackgroundColor || root.state === "loginState" && Config.loginScreenUseBackgroundColor
-            property string placeholder: Config.animatedBackgroundPlaceholder // Idea stolen from astronaut-theme. Not a fan of it, but works...
-
             anchors.fill: parent
-            source: !isVideo ? "backgrounds/" + tsource : ""
+            source: "backgrounds/default.jpg"
             cache: true
             mipmap: true
-            fillMode: {
-                if (Config.backgroundFillMode === "stretch") {
-                    return Image.Stretch;
-                } else if (Config.backgroundFillMode === "fit") {
-                    return Image.PreserveAspectFit;
-                } else {
-                    return Image.PreserveAspectCrop;
-                }
-            }
-
-            function updateVideo() {
-                if (isVideo && tsource.toString().length > 0) {
-                    backgroundVideo.source = Qt.resolvedUrl("backgrounds/" + tsource);
-
-                    if (placeholder.length > 0)
-                        source = "backgrounds/" + placeholder;
-                }
-            }
-
-            onSourceChanged: {
-                updateVideo();
-            }
-            Component.onCompleted: {
-                updateVideo();
-            }
-            onStatusChanged: {
-                if (status === Image.Error) {
-                    if (source !== "backgrounds/default.jpg" && source !== "") {
-                        source = "backgrounds/default.jpg";
-                    } else if (source === "backgrounds/default.jpg") {
-                        // If even default fails, show color background
-                        displayColor = true;
-                    }
-                }
-            }
-
-            Rectangle {
-                id: backgroundColor
-                anchors.fill: parent
-                anchors.margins: 0
-                color: root.state === "lockState" && Config.lockScreenUseBackgroundColor ? Config.lockScreenBackgroundColor : root.state === "loginState" && Config.loginScreenUseBackgroundColor ? Config.loginScreenBackgroundColor : "black"
-                visible: parent.displayColor || (backgroundVideo.visible && parent.placeholder.length === 0)
-            }
-
-            // TODO: This is slow af. Removing the property bindings and doing everything at startup should help.
-            Video {
-                id: backgroundVideo
-                anchors.fill: parent
-                visible: parent.isVideo && !parent.displayColor
-                enabled: visible
-                autoPlay: false
-                loops: MediaPlayer.Infinite
-                muted: true
-                fillMode: {
-                    if (Config.backgroundFillMode === "stretch") {
-                        return VideoOutput.Stretch;
-                    } else if (Config.backgroundFillMode === "fit") {
-                        return VideoOutput.PreserveAspectFit;
-                    } else {
-                        return VideoOutput.PreserveAspectCrop;
-                    }
-                }
-
-                onSourceChanged: {
-                    if (source && source.toString().length > 0) {
-                        backgroundVideo.play();
-                    }
-                }
-                onErrorOccurred: function (error) {
-                    if (error !== MediaPlayer.NoError && (!backgroundImage.placeholder || backgroundImage.placeholder.length === 0)) {
-                        backgroundImage.displayColor = true;
-                    }
-                }
-            }
-
-            // Overkill, but fine...
-            Component.onDestruction: {
-                if (backgroundVideo) {
-                    backgroundVideo.stop();
-                    backgroundVideo.source = "";
-                }
-            }
+            fillMode: Image.PreserveAspectCrop
         }
+
         MultiEffect {
             // Background effects
             id: backgroundEffect
             source: backgroundImage
             anchors.fill: parent
-            blurEnabled: backgroundImage.visible && blurMax > 0
+            blurEnabled: blurMax > 0
             blur: blurMax > 0 ? 1.0 : 0.0
             autoPaddingEnabled: false
         }
@@ -215,16 +120,51 @@ Item {
             anchors.fill: parent
             anchors.top: parent.top
 
-            LockScreen {
-                id: lockScreen
-                z: root.state === "lockState" ? 2 : 1 // Fix tooltips from the login screen showing up on top of the lock screen.
+            MouseArea {
                 anchors.fill: parent
-                focus: root.state === "lockState"
                 enabled: root.state === "lockState"
-                onLoginRequested: {
+                onClicked: {
                     root.state = "loginState";
                     loginScreen.resetFocus();
                 }
+            }
+
+            // Keyboard handler for clock screen
+            Item {
+                anchors.fill: parent
+                enabled: root.state === "lockState"
+                focus: root.state === "lockState"
+
+                Keys.onPressed: function (event) {
+                    // Whitelist of keys that trigger login
+                    var isLetter = event.key >= Qt.Key_A && event.key <= Qt.Key_Z;
+                    var isNumber = event.key >= Qt.Key_0 && event.key <= Qt.Key_9;
+                    var isEnter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter;
+                    var isSpace = event.key === Qt.Key_Space;
+                    var isArrow = event.key === Qt.Key_Left || event.key === Qt.Key_Right ||
+                                   event.key === Qt.Key_Up || event.key === Qt.Key_Down;
+                    var isSymbol = (event.key >= Qt.Key_Exclam && event.key <= Qt.Key_AsciiTilde);
+
+                    if (isLetter || isNumber || isEnter || isSpace || isArrow || isSymbol) {
+                        root.state = "loginState";
+                        loginScreen.resetFocus();
+                        event.accepted = true;
+                    } else {
+                        event.accepted = false;
+                    }
+                }
+            }
+
+            Clock {
+                id: lockScreen
+                z: root.state === "lockState" ? 2 : 1 // Fix tooltips from the login screen showing up on top of the lock screen.
+                anchors {
+                    horizontalCenter: parent.horizontalCenter
+                    verticalCenter: parent.verticalCenter
+                }
+                focus: root.state === "lockState"
+                enabled: root.state === "lockState"
+                state: root.state === "lockState" ? "visible" : "hidden"
             }
             LoginScreen {
                 id: loginScreen
