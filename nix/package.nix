@@ -27,6 +27,9 @@ in {
       ../LICENSE
       ../README.md
       ../flake.lock
+      # README-only screenshots in repo root, not part of the theme
+      ../clock.png
+      ../login.png
     ]);
   };
 
