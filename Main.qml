@@ -2,7 +2,6 @@ import "."
 import QtQuick
 import SddmComponents
 import QtQuick.Effects
-import QtMultimedia
 import "components"
 
 Item {
