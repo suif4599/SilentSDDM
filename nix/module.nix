@@ -138,8 +138,8 @@ in {
     qt.enable = true;
     systemd.services.display-manager.enable = true;
     services.displayManager.sddm = {
-      wayland.enable = ! config.services.xserver.enable;
-      enable = true;
+      wayland.enable = lib.mkDefault (! config.services.xserver.enable);
+      enable = lib.mkDefault true;
       package = lib.mkDefault pkgs.kdePackages.sddm;
       theme = "silent";
       # requires reboot to take effect
