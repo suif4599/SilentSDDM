@@ -26,10 +26,11 @@ in {
       ../docs
       ../LICENSE
       ../README.md
-      ../flake.lock
+      # flake.lock may or may not exist (this fork doesn't ship one)
+      (lib.fileset.maybeMissing ../flake.lock)
       # README-only screenshots in repo root, not part of the theme
-      ../clock.png
-      ../login.png
+      (lib.fileset.maybeMissing ../clock.png)
+      (lib.fileset.maybeMissing ../login.png)
     ]);
   };
 
